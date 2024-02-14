@@ -1,5 +1,7 @@
 module pTatinIO
 
-greet() = print("Hello World!")
+include("Read_pTatin3D.jl")
+
+
 
 end # module pTatinIO
