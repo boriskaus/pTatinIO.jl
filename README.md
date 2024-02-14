@@ -23,7 +23,14 @@ julia> step_dir="test3/step0/step0"
 You can read the velocity data into julia with:
 ```julia
 julia> using pTatinIO
-julia> X,V = Read_Vel(step_dir)
+julia> vel_data = Read_Vel(step_dir)
+CartData 
+    size    : (65, 65, 65)
+    x       ϵ [ 0.0 : 1.0]
+    y       ϵ [ 0.0 : 1.0]
+    z       ϵ [ 0.0 : 1.0]
+    fields  : (:Velocity,)
+  attributes: ["note"]
 ```
 
 

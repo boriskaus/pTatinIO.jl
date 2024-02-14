@@ -1,5 +1,5 @@
 
-using JSON, PETScBinaryIO
+using JSON, PETScBinaryIO, GeophysicalModelGenerator
 import PETScBinaryIO: read_vec
 
 export Read_Cell, Read_Vel, Read_DMDA_coords, Read_DMDA_data, get_dimensions_json, reshape_DMDA, ReadVec
@@ -21,18 +21,19 @@ function Read_Cell(step_dir::String; int_type=Int32, scalar_type=Float64)
     return Coord, Data
  end
 
- 
+"""
+Reads velocity file from a pTatin 
+"""
 function Read_Vel(step_dir::String; int_type=Int32, scalar_type=Float64)
 
-   json_file  = step_dir*".dmda-velocity_dmda.json"  # velocity json (has dimensions)
-   coord_file = step_dir*".dmda-velocity_dmda_coords.pbvec" # coordinates of V
-   velocity_file = step_dir*".dmda-Xu" # values
+    json_file  = step_dir*".dmda-velocity_dmda.json"  # velocity json (has dimensions)
+    coord_file = step_dir*".dmda-velocity_dmda_coords.pbvec" # coordinates of V
+    velocity_file = step_dir*".dmda-Xu" # values
 
-   Coord, n = Read_DMDA_coords(json_file, coord_file; int_type=int_type, scalar_type=scalar_type);
-   Vel = Read_DMDA_data(velocity_file, n, length(Coord); int_type=int_type, scalar_type=scalar_type);
-    
-
-    return Coord, Vel
+    X, n = Read_DMDA_coords(json_file, coord_file; int_type=int_type, scalar_type=scalar_type);
+    V = Read_DMDA_data(velocity_file, n, length(X); int_type=int_type, scalar_type=scalar_type);
+        
+    return  CartData(X[1],X[2],X[3],(Velocity=(V[1],V[2],V[3]),))
 end
 
 
@@ -48,7 +49,7 @@ function Read_DMDA_coords(json_file::String, coord_file::String; int_type=Int32,
 
     # read coordinates
     coord_vec  = ReadVec(coord_file, int_type=int_type, scalar_type=scalar_type);  # read vec
-    Coord = reshape_DMDA(coord_vec, n, dim);
+    Coord = reshape_DMDA(coord_vec, n, ndof);
 
     return Coord, n
 end
