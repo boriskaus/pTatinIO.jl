@@ -1,24 +1,26 @@
+# This reads the data from PETSc vectors back into julia
 
 using JSON, PETScBinaryIO, GeophysicalModelGenerator
 import PETScBinaryIO: read_vec
 
 export Read_Cell, Read_Vel, Read_DMDA_coords, Read_DMDA_data, get_dimensions_json, reshape_DMDA, ReadVec
 
-function Read_Cell(step_dir::String; int_type=Int32, scalar_type=Float64)
+function LoadFEMeshQ1CreateFromPetscVec(step_dir::String; int_type=Int32, scalar_type=Float64)
 
     json_file  = step_dir*".dmda-pressure_dmda.json"  # center json (has dimensions)
     coord_file = step_dir*".dmda-cell.coords.vec"     # coordinates of P
     pres_file  = step_dir*".dmda-Xp"                  # values @ center
  
     # read coordinates of vertexes
-    n, ndof = get_dimensions_json(json_file);
-    coord_vec  = ReadVec(coord_file, int_type=int_type, scalar_type=scalar_type);  # read vec
-    Coord = reshape_DMDA(coord_vec, n.+1, dim); # note that the size is onemore
+    n, ndof, dim = get_dimensions_json(json_file);
+    coord_vec   = ReadVec(coord_file, int_type=int_type, scalar_type=scalar_type);  # read vec
+    Coord       = reshape_DMDA(coord_vec, n.+1, dim); # note that the size is onemore
     
-    # Read data
-    Data = Read_DMDA_data(pres_file, n, ndof; int_type=int_type, scalar_type=scalar_type);
-
-    return Coord, Data
+    # Read pressure data
+    # This is special as P doesn't live on nodes but is rather a P-1 shape function so has a constant and 3 gradients
+    Data_P = Read_DMDA_data(pres_file, n, ndof; int_type=int_type, scalar_type=scalar_type);
+    
+    return Coord, Data_P
  end
 
 """
@@ -45,11 +47,11 @@ Reads a PETSc DMDA dataset as specified in `json_file` with coordinates file `co
 function Read_DMDA_coords(json_file::String, coord_file::String; int_type=Int32, scalar_type=Float64)
     
     # Retrieve names of files
-    n, ndof = get_dimensions_json(json_file);
+    n, ndof, dim = get_dimensions_json(json_file);
 
     # read coordinates
     coord_vec  = ReadVec(coord_file, int_type=int_type, scalar_type=scalar_type);  # read vec
-    Coord = reshape_DMDA(coord_vec, n, ndof);
+    Coord = reshape_DMDA(coord_vec, n, dim);
 
     return Coord, n
 end
@@ -70,7 +72,9 @@ end
 
 
 """
-returns the dimensions of the JSON file `json_file`
+    n, ndof, dim = get_dimensions_json(json_file::String)
+
+Returns the dimensions of the JSON file `json_file`
 """
 function get_dimensions_json(json_file::String)
     json_data = JSON.parsefile(json_file) # read JSON file
@@ -97,7 +101,7 @@ function get_dimensions_json(json_file::String)
         error("unknown file format")
     end
 
-    return n, ndof
+    return n, ndof, dim
 end
 
 """

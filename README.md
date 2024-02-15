@@ -32,6 +32,7 @@ CartData
     fields  : (:Velocity,)
   attributes: ["note"]
 ```
+The output is in the [GeophysicalModelGenerator](https://github.com/JuliaGeodynamics/GeophysicalModelGenerator.jl) format.
 
 
 
