@@ -1,8 +1,66 @@
 # This reads VTS files, created by ptatin3d-pyviztools, back into julia
-using ReadVTK, GeophysicalModelGenerator, WriteVTK
+using ReadVTK, GeophysicalModelGenerator, WriteVTK, LightXML
 
-export pTatin_CartData, Compress_pTatin_VTS_File, Read_pTatin_VTS_File
+export pTatin_CartData, Compress_pTatin_Simulation, Compress_pTatin_VTS_File, Read_pTatin_VTS_File
 
+
+"""
+"""
+function Compress_pTatin_Simulation(pvd_filename::String)
+    if pvd_filename[end-2:end]!="pvd"
+        error("Filename should end on *.pvd; currently is $pvd_filename")
+    end
+
+    # Load the *.pvd simulation ---
+    # Normally we would use PVDFile for that (from the ReadVTK package), but for some reason, 
+    # the ptatin3d-pyviztools writes a too old version of this fileformat. 
+    # It's a quite simple fileformat, so we simply mimic this here
+    xml_file_contents = read(pvd_filename, String)
+    
+    # Open file and ensure that it is a valid VTK file
+    xml_file = LightXML.parse_string(xml_file_contents)
+    root = LightXML.root(xml_file)
+    @assert LightXML.name(root) == "VTKFile"
+
+    # Extract attributes (use `required=true` to fail fast & hard in case of unexpected content)
+    file_type = attribute(root, "type", required = true)
+   
+    # Ensure matching file types
+    if file_type != "Collection"
+        error("Unsupported PVD file type: ", file_type)
+    end
+
+    version = VersionNumber(attribute(root, "version", required = true))
+    
+    pieces = root[file_type][1]["DataSet"]
+    n_pieces = length(pieces)
+    vtk_filenames = Vector{String}(undef, n_pieces)
+    directories = Vector{String}(undef, n_pieces)
+    timesteps = Vector{Float64}(undef, n_pieces)
+    for i in 1:n_pieces
+        file_dir = attribute(pieces[i], "file", required = true)
+        vtk_filenames[i] = file_dir
+        directories[i] = dirname(file_dir)
+        timesteps[i] = parse(Float64, attribute(pieces[i], "timestep", required = true))
+    end
+    pvd = PVDFile(pvd_filename, file_type, vtk_filenames, directories, timesteps)
+    # -----------------------------
+
+
+    # Now loop through the files and a) compress each of them, b) add them to a new PVD file
+    vtk_filenames_compressed =  Vector{WriteVTK.DatasetFile}(undef, n_pieces)
+    pvd_filename_compressed = pvd_filename[1:end-4]*"_compressed.pvd"
+    pvd_compressed = paraview_collection(pvd_filename_compressed)
+    for i in 1:n_pieces
+        vtk = Compress_pTatin_VTS_File(pvd.vtk_filenames[i]);
+        pvd_compressed[pvd.timesteps[i]] = vtk
+    end
+    
+    # and save the new PVD file
+    vtk_save(pvd_compressed)
+
+    return pvd_filename_compressed
+end
 
 """
     cart_data = pTatin_CartData(FileName::String; DirName_base::String=pwd(), to_km=true)
@@ -130,7 +188,7 @@ end
 
 
 """
-    Compress_pTatin_VTS_File(FileName::String; DirName_base::String=pwd())
+    vtk = Compress_pTatin_VTS_File(FileName::String; DirName_base::String=pwd())
 
 Opens a pTatin `*.vts` file and saves it again but in compressed form.
 """
@@ -162,7 +220,7 @@ function Compress_pTatin_VTS_File(FileName::String; DirName_base::String=pwd())
 
     cd(CurDir)
 
-    return output
+    return vtk
 end
 
     
