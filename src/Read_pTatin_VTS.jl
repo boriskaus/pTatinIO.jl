@@ -5,11 +5,16 @@ export pTatin_CartData, Compress_pTatin_Simulation, Compress_pTatin_VTS_File, Re
 
 
 """
+    Compress_pTatin_Simulation(pvd_filename::String; Dir=pwd())
+
+This compresses all the files of a pTatin simulation.
 """
-function Compress_pTatin_Simulation(pvd_filename::String)
+function Compress_pTatin_Simulation(pvd_filename::String; Dir=pwd())
     if pvd_filename[end-2:end]!="pvd"
         error("Filename should end on *.pvd; currently is $pvd_filename")
     end
+    CurDir = pwd()
+    cd(Dir)
 
     # Load the *.pvd simulation ---
     # Normally we would use PVDFile for that (from the ReadVTK package), but for some reason, 
@@ -59,20 +64,22 @@ function Compress_pTatin_Simulation(pvd_filename::String)
     # and save the new PVD file
     vtk_save(pvd_compressed)
 
+    cd(CurDir)
+
     return pvd_filename_compressed
 end
 
 """
-    cart_data = pTatin_CartData(FileName::String; DirName_base::String=pwd(), to_km=true)
+    cart_data = pTatin_CartData(FileName::String; Dir::String=pwd(), to_km=true)
 
 This opens a pTatin `*.vts` file and imports it as GeophysicalModelGenerator `CartData` dataset.
 Note that we interpolate vertex data (usually velocity) to cell centers. `to_km` indicates whether we scale 
 the length from meters to kilometers. 
 """
-function pTatin_CartData(FileName::String; DirName_base::String=pwd(), to_km=true)
+function pTatin_CartData(FileName::String; Dir::String=pwd(), to_km=true)
 
     # read file
-    coord, data_points, data_cell = Read_pTatin_VTS_File(FileName; DirName_base=DirName_base);
+    coord, data_points, data_cell = Read_pTatin_VTS_File(FileName; DirName_base=Dir);
 
     # interpolate vertex -> cell data
     coord_cell = Vertex2Cell(coord)
